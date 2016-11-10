@@ -419,11 +419,31 @@ def bwa_bam_sort(sample_base):
     os.remove('./BWA_BAM_files/{}.bam'.format(sample_base))
 
 
+def bwa_index(sample_base):
+    print("Starting index for {}".format(sample_base))
+    path_to_executable = '{} index'.format(samtools)
+    path_to_samples = './BWA_BAM_files/{}.sorted.bam'
+
+    command = [path_to_executable, path_to_samples]
+    call_code = ' '.join(command)
+    print(call_code)
+    process = subprocess.Popen([call_code], shell=True,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    while True:
+        output = process.stdout.readline()
+        if output == '' and process.poll() is not None:
+            break
+        if output:
+            print output.strip()
+        rc = process.poll()
+    print("Done with index for {}".format(sample_base))
+
+
 def bwa_samstat_analysis(sample_base):
     print("Starting samstat analysis for {}".format(sample_base))
 
     path_to_executable = samstat
-    path_to_samples = './BWA_BAM_filess/{}.sorted.bam'.format(sample_base)
+    path_to_samples = './BWA_BAM_files/{}.sorted.bam'.format(sample_base)
     command = [path_to_executable, path_to_samples]
     call_code = ' '.join(command)
     print(call_code)
@@ -668,16 +688,17 @@ def RNAseq_analysis(sample_base):
 
 
 def setup_bwa(sample_base):
-    bwa_alignment(sample_base)
-    bwa_read_group(sample_base)
-    bwa_sam_to_bam(sample_base)
-    bwa_bam_sort(sample_base)
-    bwa_samstat_analysis(sample_base)
+    # bwa_alignment(sample_base)
+    # bwa_read_group(sample_base)
+    # bwa_sam_to_bam(sample_base)
+    # bwa_bam_sort(sample_base)
+    # bwa_samstat_analysis(sample_base)
+    bwa_index(sample_base)
 
 
 def bwa_genome_search(sample_base):
     # if cont:
-    # setup_bwa(sample_base)
+    setup_bwa(sample_base)
     gatk_intervals(sample_base)
     gatk_realignment(sample_base)
     gatk_recalibration(sample_base)
