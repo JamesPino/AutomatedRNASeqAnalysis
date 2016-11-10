@@ -677,7 +677,7 @@ def setup_bwa(sample_base):
 
 def bwa_genome_search(sample_base):
     # if cont:
-    setup_bwa(sample_base)
+    # setup_bwa(sample_base)
     gatk_intervals(sample_base)
     gatk_realignment(sample_base)
     gatk_recalibration(sample_base)
@@ -746,6 +746,11 @@ print(wd)
 # RNAseq_analysis('3612-DC-3')
 # RNAseq_analysis('3612-DC-4')
 # featurecounts_analysis()
+
+
+os.chdir(output_directory)
+wd = os.getcwd()
+print(wd)
 
 # bwa_genome_search('3612-DC-1')
 bwa_genome_search('3612-DC-2')
