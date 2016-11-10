@@ -104,9 +104,13 @@ elif pc == 'goku':
 
 # Adaptor Trimming via Flexbar
 class RNASeq_pipeline:
-    def __init__(self, sample_base, n_cpu):
+    def __init__(self, sample_base, output_directory, n_cpu):
         self.sample_base = sample_base
         self.n_cpu = n_cpu
+        if not os.path.exists(output_directory):
+            os.mkdir(output_directory)
+        os.chdir(output_directory)
+
 
     def flexbar_trim(self):
         # Flexbar options
