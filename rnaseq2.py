@@ -675,16 +675,16 @@ def setup_bwa(sample_base):
     bwa_samstat_analysis(sample_base)
 
 
-def bwa_genome_search(sample_base, cont):
-    if cont:
-        setup_bwa(sample_base)
+def bwa_genome_search(sample_base):
+    # if cont:
+    # setup_bwa(sample_base)
     # gatk_intervals(sample_base)
     # gatk_realignment(sample_base)
     # gatk_recalibration(sample_base)
     # gatk_realign_recal(sample_base)
-    mark_dup(sample_base)
-    dup_index(sample_base)
-    # final_entity_search(sample_base)
+    # mark_dup(sample_base)
+    # dup_index(sample_base)
+    final_entity_search(sample_base)
     # if entity_searched == 'indel':
     #     os.remove('./BWA_BAM_files/{}.indel.realigned.recal.bam'.format(sample_base))
     # elif entity_searched == 'snp':
