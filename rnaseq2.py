@@ -14,34 +14,31 @@ import subprocess
 
 # General information - modify appropriately for each experiment
 # sample_base = "3612-DC-1"  # Naming scheme of samples without the sample number
-# number_of_samples = '4'  # Number of sequencing samples
+number_of_samples = '4'  # Number of sequencing samples
 species = 'human'  # Valid options: mouse or human
 read_type = 'PE'  # Valid options: "SE" or "PE"
 read_length = 150
 sample_suffix = 'fastq'
 compression_suffix = 'gz'
-n_cpus = 4
+n_cpus = 8
 pc = 'cortez_mac'
-experiment_name = '20160816_rnaseq'  # Name of experiment, also name of the output folder for all files
-indel_search = 'yes'  # Valid options: yes or no
-snp_search = 'yes'  # Valid options: yes or no
+# experiment_name = '20160816_rnaseq'  # Name of experiment, also name of the output folder for all files
+entity_searched = 'indel'  # Valid options include 'indel', 'snp', or 'none'
 
 if pc == 'cortez_mac':
     # Setting up programs
-    flexbar = '/usr/local/bin/flexbar_v2.5_macosx'
-    hisat2 = '/usr/local/bin/hisat2-2.0.4'
+    flexbar = '/usr/local/bin/flexbar_v2.5_macosx/flexbar'
+    hisat2 = '/usr/local/bin/hisat2-2.0.4/hisat2'
     samtools = '/usr/local/bin/samtools'
     featurecounts = '/usr/local/bin/featureCounts'
     samstat = '/usr/local/bin/samstat'
     gatk = '/Users/temporary/Sources/GenomeAnalysisTK.jar'
-    samtools = '/usr/local/bin/samtools'
-    bwa = '/usr/local/bin/bwa-0.7.15'
+    bwa = '/usr/local/bin/bwa-0.7.15/bwa'
     picard = '/Users/temporary/Sources/picard.jar'
-    samstat = '/usr/local/bin/samstat'
 
     # experiment specific information
-    output_directory = "/Users/temporary/projects/{}".format(experiment_name)
-    fasta_directory = "/Users/temporary/projects/{}/fasta".format(experiment_name)
+    output_directory = "/Users/temporary/projects/E65_RPE_RNA_seq"
+    fasta_directory = "/Users/temporary/projects/E65_RPE_RNA_seq/fastq"
 
     # Reference files
     if species == 'mouse':
@@ -57,7 +54,7 @@ if pc == 'cortez_mac':
         transcripts = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Annotation/Genes/genes.gtf'
         hisat2_index = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/HISAT2Index.hisat_genome'
         bwa_index = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome'
-        reference_genome = reference_genome = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome.fa'
+        reference_genome = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome.fa'
         indel_vcf_file = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/Mills_and_1000G_gold_standard.indels.hg38.vcf'
         snp_vcf_file = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/1000G_phase1.snps.high_confidence.hg38.vcf'
 
@@ -82,7 +79,7 @@ elif pc == 'goku':
 
     # experiment specific information
     adaptors = '/home/pinojc/RNASeq_sources/illumina_truseq.fasta'
-    output_directory = "/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/LP_data/{}".format(experiment_name)
+    output_directory = "/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/LP_data/"
     fasta_directory = "/home/pinojc/LisaData/E65_rna_fasta"
 
     if species == 'mouse':
@@ -235,7 +232,7 @@ def bam_index(sample_base):
     path_to_executable = '{} index'.format(samtools)
     path_to_samples = './BAM_files/{}.sorted.bam'.format(sample_base)
     threads = '--threads {}'.format(n_cpus)
-    command = [path_to_executable, threads, output_filename, path_to_samples]
+    command = [path_to_executable, threads, path_to_samples]
     call_code = ' '.join(command)
     print(call_code)
     process = subprocess.Popen([call_code], shell=True,
@@ -291,7 +288,7 @@ def featurecounts_analysis(sample_base):
 
     path_to_executable = featurecounts
     annotation_file = "-a {}".format(transcripts)
-    output_name = "-o {}_gene_counts.txt".format(experiment_name)
+    output_name = "-o gene_counts.txt"
     gtf_feature = '-t exon'
     gtf_attibute = '-g gene_id'
     quality_score = '-Q 30'
@@ -426,7 +423,7 @@ def bwa_samstat_analysis(sample_base):
     print("Starting samstat analysis for {}".format(sample_base))
 
     path_to_executable = samstat
-    path_to_samples = './BWA_BAM_files/{}.sorted.bam'.format(sample_base)
+    path_to_samples = './BWA_BAM_filess/{}.sorted.bam'.format(sample_base)
     command = [path_to_executable, path_to_samples]
     call_code = ' '.join(command)
     print(call_code)
@@ -441,18 +438,25 @@ def bwa_samstat_analysis(sample_base):
             print output.strip()
         rc = process.poll()
     print("Done with samstat analysis for {}".format(sample_base))
-    os.rename('./BWA_BAM_file/{}.sorted.bam.samstat.html'.format(sample_base),
+    os.rename('./BWA_BAM_files/{}.sorted.bam.samstat.html'.format(sample_base),
               './SAMSTAT_analysis/{}.bwa.sorted.bam.samstat.html'.format(sample_base))
 
 
-def gatk_indel_intervals(sample_base):
-    print("Starting gatk indel intervals for {}".format(sample_base))
+# Start of steps involving selection of 'indel' or 'snp'
+def gatk_intervals(sample_base):
+    print("Starting gatk intervals for {}".format(sample_base))
     path_to_executable = "java -jar {}".format(gatk)
     gatk_program = '-T RealignerTargetCreator'
     path_to_reference = "-R {}".format(reference_genome)
-    input_files = '-I ./BWA_BAM_file/{}.sorted.bam'.format(sample_base)
-    output_file = '-o ./BWA_BAM_file/{}.indel.intervals'.format(sample_base)
-    path_to_vcf = "--known {}".format(indel_vcf_file)
+    input_files = '-I ./BWA_BAM_files/{}.sorted.bam'.format(sample_base)
+
+    if entity_searched == 'indel':
+        output_file = '-o ./BWA_BAM_files/{}.indel.intervals'.format(sample_base)
+        path_to_vcf = "--known {}".format(indel_vcf_file)
+    elif entity_searched == 'snp':
+        output_file = '-o ./BWA_BAM_files/{}.snp.intervals'.format(sample_base)
+        path_to_vcf = "--known {}".format(snp_vcf_file)
+
     command = [path_to_executable, gatk_program, path_to_reference, input_files, path_to_vcf, output_file]
     call_code = ' '.join(command)
     print(call_code)
@@ -465,41 +469,25 @@ def gatk_indel_intervals(sample_base):
         if output:
             print output.strip()
         rc = process.poll()
-        print("Done with gatk indel intervals for {}".format(sample_base))
+    print("Done with gatk intervals for {}".format(sample_base))
 
 
-def gatk_snp_intervals(sample_base):
-    print("Starting gatk snp intervals for {}".format(sample_base))
-    path_to_executable = "java -jar {}".format(gatk)
-    gatk_program = '-T RealignerTargetCreator'
-    path_to_reference = "-R {}".format(reference_genome)
-    input_files = '-I ./BWA_BAM_file/{}.sorted.bam'.format(sample_base)
-    output_file = '-o ./BWA_BAM_file/{}.snp.intervals'.format(sample_base)
-    path_to_vcf = "--known {}".format(snp_vcf_file)
-    command = [path_to_executable, gatk_program, path_to_reference, input_files, path_to_vcf, output_file]
-    call_code = ' '.join(command)
-    print(call_code)
-    process = subprocess.Popen([call_code], shell=True,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    while True:
-        output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
-            break
-        if output:
-            print output.strip()
-        rc = process.poll()
-        print("Done with gatk snp intervals for {}".format(sample_base))
-
-
-def gatk_indel_realignment(sample_base):
-    print("Starting gatk indel realignment for {}".format(sample_base))
+def gatk_realignment(sample_base):
+    print("Starting gatk realignment for {}".format(sample_base))
     path_to_executable = "java -jar {}".format(gatk)
     gatk_program = '-T IndelRealigner'
     path_to_reference = "-R {}".format(reference_genome)
-    input_files = '-I ./BWA_BAM_file/{}.sorted.bam'.format(sample_base)
-    intervals = '-targetIntervals ./BWA_BAM_file/{}.indel.intervals'.format(sample_base)
     options = '--maxReadsForRealignment 999999 --maxReadsInMemory 999999'
-    output_file = '-o ./BWA_BAM_file/{}.indel.realigned.bam'.format(sample_base)
+
+    if entity_searched == 'indel':
+        input_files = '-I ./BWA_BAM_files/{}.sorted.bam'.format(sample_base)
+        intervals = '-targetIntervals ./BWA_BAM_files/{}.indel.intervals'.format(sample_base)
+        output_file = '-o ./BWA_BAM_files/{}.indel.realigned.bam'.format(sample_base)
+    elif entity_searched == 'snp':
+        input_files = '-I ./BWA_BAM_files/{}.sorted.bam'.format(sample_base)
+        intervals = '-targetIntervals ./BWA_BAM_files/{}.snp.intervals'.format(sample_base)
+        output_file = '-o ./BWA_BAM_files/{}.snp.realigned.bam'.format(sample_base)
+
     command = [path_to_executable, gatk_program, path_to_reference, input_files, intervals, options, output_file]
     call_code = ' '.join(command)
     print(call_code)
@@ -512,42 +500,25 @@ def gatk_indel_realignment(sample_base):
         if output:
             print output.strip()
         rc = process.poll()
-        print("Done with gatk indel realignment for {}".format(sample_base))
+    print("Done with gatk realignment for {}".format(sample_base))
 
 
-def gatk_snp_realignment(sample_base):
-    print("Starting gatk indel realignment for {}".format(sample_base))
-    path_to_executable = "java -jar {}".format(gatk)
-    gatk_program = '-T IndelRealigner'
-    path_to_reference = "-R {}".format(reference_genome)
-    input_files = '-I ./BWA_BAM_file/{}.sorted.bam'.format(sample_base)
-    intervals = '-targetIntervals ./BWA_BAM_file/{}.snp.intervals'.format(sample_base)
-    options = '--maxReadsForRealignment 999999 --maxReadsInMemory 999999'
-    output_file = '-o ./BWA_BAM_file/{}.snp.realigned.bam'.format(sample_base)
-    command = [path_to_executable, gatk_program, path_to_reference, input_files, intervals, options, output_file]
-    call_code = ' '.join(command)
-    print(call_code)
-    process = subprocess.Popen([call_code], shell=True,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    while True:
-        output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
-            break
-        if output:
-            print output.strip()
-        rc = process.poll()
-        print("Done with gatk snp realignment for {}".format(sample_base))
-
-
-def gatk_indel_recalibration(sample_base):
+def gatk_recalibration(sample_base):
     print("Starting gatk indel recalibration for {}".format(sample_base))
     path_to_executable = "java -jar {}".format(gatk)
     gatk_program = '-T BaseRecalibrator'
     path_to_reference = "-R {}".format(reference_genome)
-    input_files = '-I ./BWA_BAM_file/{}.indel.realigned.bam'.format(sample_base)
     options = '-l INFO'
-    output_file = '-o ./BWA_BAM_file/{}.indel.recal.table'.format(sample_base)
-    path_to_vcf = "--known {}".format(indel_vcf_file)
+
+    if entity_searched == 'indel':
+        input_files = '-I ./BWA_BAM_files/{}.indel.realigned.bam'.format(sample_base)
+        output_file = '-o ./BWA_BAM_files/{}.indel.recal.table'.format(sample_base)
+        path_to_vcf = "-knownSites {}".format(indel_vcf_file)
+    elif entity_searched == 'snp':
+        input_files = '-I BWA_BAM_files/{}.snp.realigned.bam'.format(sample_base)
+        output_file = '-o ./BWA_BAM_files/{}.snp.recal.table'.format(sample_base)
+        path_to_vcf = "--known {}".format(snp_vcf_file)
+
     command = [path_to_executable, gatk_program, path_to_reference, input_files, options, path_to_vcf, output_file]
     call_code = ' '.join(command)
     print(call_code)
@@ -560,65 +531,24 @@ def gatk_indel_recalibration(sample_base):
         if output:
             print output.strip()
         rc = process.poll()
-        print("Done with gatk indel recalibration for {}".format(sample_base))
+    print("Done with gatk indel recalibration for {}".format(sample_base))
 
 
-def gatk_snp_recalibration(sample_base):
-    print("Starting gatk snp recalibration for {}".format(sample_base))
-    path_to_executable = "java -jar {}".format(gatk)
-    gatk_program = '-T BaseRecalibrator'
-    path_to_reference = "-R {}".format(reference_genome)
-    input_files = '-I ./BWA_BAM_file/{}.snp.realigned.bam'.format(sample_base)
-    options = '-l INFO'
-    output_file = '-o ./BWA_BAM_file/{}.snp.recal.table'.format(sample_base)
-    path_to_vcf = "--known {}".format(snp_vcf_file)
-    command = [path_to_executable, gatk_program, path_to_reference, input_files, options, path_to_vcf, output_file]
-    call_code = ' '.join(command)
-    print(call_code)
-    process = subprocess.Popen([call_code], shell=True,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    while True:
-        output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
-            break
-        if output:
-            print output.strip()
-        rc = process.poll()
-        print("Done with gatk snp recalibration for {}".format(sample_base))
-
-
-def gatk_indel_realign_recal(sample_base):
-    print("Starting gatk indel realign recal for {}".format(sample_base))
-    path_to_executable = "java -jar {}".format(gatk)
-    gatk_program = '-T PrintReads'
-    path_to_reference = "-R {}".format(reference_genome)
-    input_files = '-I ./BWA_BAM_files/{}.indel.realigned.bam'.format(sample_base)
-    options = '-BQSR ./BWA_BAM_files/{}.indel.recal.table'.format(sample_base)
-    output_file = '-o ./BWA_BAM_files/{}.indel.realigned.recal.bam'.format(sample_base)
-    command = [path_to_executable, gatk_program, path_to_reference, input_files, options, output_file]
-    call_code = ' '.join(command)
-    print(call_code)
-    process = subprocess.Popen([call_code], shell=True,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    while True:
-        output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
-            break
-        if output:
-            print output.strip()
-        rc = process.poll()
-        print("Done with gatk realign recal for {}".format(sample_base))
-        os.remove('./BWA_BAM_files/{}.indel.realigned.bam'.format(sample_base))
-
-
-def gatk_snp_realign_recal(sample_base):
+def gatk_realign_recal(sample_base):
     print("Starting gatk realign recal for {}".format(sample_base))
     path_to_executable = "java -jar {}".format(gatk)
     gatk_program = '-T PrintReads'
     path_to_reference = "-R {}".format(reference_genome)
-    input_files = '-I ./BWA_BAM_files/{}.snp.realigned.bam'.format(sample_base)
-    options = '-BQSR ./BWA_BAM_files/{}.snp.recal.table'.format(sample_base)
-    output_file = '-o ./BWA_BAM_files/{}.snp.realigned.recal.bam'.format(sample_base)
+
+    if entity_searched == 'indel':
+        input_files = '-I ./BWA_BAM_files/{}.indel.realigned.bam'.format(sample_base)
+        options = '-BQSR BWA_BAM_files/{}.indel.recal.table'.format(sample_base)
+        output_file = '-o ./BWA_BAM_files/{}.indel.realigned.recal.bam'.format(sample_base)
+    elif entity_searched == 'snp':
+        input_files = '-I ./BWA_BAM_files/{}.snp.realigned.bam'.format(sample_base)
+        options = '-BQSR ./BWA_BAM_files/{}.snp.recal.table'.format(sample_base)
+        output_file = '-o ./BWA_BAM_files/{}.snp.realigned.recal.bam'.format(sample_base)
+
     command = [path_to_executable, gatk_program, path_to_reference, input_files, options, output_file]
     call_code = ' '.join(command)
     print(call_code)
@@ -631,17 +561,24 @@ def gatk_snp_realign_recal(sample_base):
         if output:
             print output.strip()
         rc = process.poll()
-        print("Done with gatk realign recal for {}".format(sample_base))
-        os.remove('./BWA_BAM_files/{}.snp.realigned.bam'.format(sample_base))
+    print("Done with gatk realign recal for {}".format(sample_base))
+    # os.remove('./BWA_BAM_files/{}.indel.realigned.bam'.format(sample_base))
 
 
-def mark_indel_dup(sample_base):
+def mark_dup(sample_base):
     print("Starting mark dup for {}".format(sample_base))
     path_to_executable = "java -jar {}".format(picard)
     picard_program = 'MarkDuplicates'
-    input_files = 'I=./BWA_BAM_files/{}.indel.realigned.recal.bam'.format(sample_base)
-    output_file = 'O=./BWA_BAM_files/{}.indel.realigned.recal.dupmarked.bam'.format(sample_base)
-    options = 'M=./BWA_BAM_files/{}-indel-marked_dup_metrics.txt'.format(sample_base)
+
+    if entity_searched == 'indel':
+        input_files = 'I=./BWA_BAM_files/{}.indel.realigned.recal.bam'.format(sample_base)
+        output_file = 'O=./BWA_BAM_files/{}.indel.realigned.recal.dupmarked.bam'.format(sample_base)
+        options = 'M=./BWA_BAM_files/{}-indel-marked_dup_metrics.txt'.format(sample_base)
+    elif entity_searched == 'snp':
+        input_files = 'I=./BWA_BAM_files/{}.snp.realigned.recal.bam'.format(sample_base)
+        output_file = 'O=./BWA_BAM_files/{}.snp.realigned.recal.dupmarked.bam'.format(sample_base)
+        options = 'M=./BWA_BAM_files/{}-snp-marked_dup_metrics.txt'.format(sample_base)
+
     command = [path_to_executable, picard_program, input_files, output_file, options]
     call_code = ' '.join(command)
     print(call_code)
@@ -654,37 +591,18 @@ def mark_indel_dup(sample_base):
         if output:
             print output.strip()
         rc = process.poll()
-        print("Done with mark dup for {}".format(sample_base))
-        os.remove('./BWA_BAM_files/{}.indel.realigned.recal.bam'.format(sample_base))
+    print("Done with mark dup for {}".format(sample_base))
 
 
-def mark_snp_dup(sample_base):
-    print("Starting mark dup for {}".format(sample_base))
-    path_to_executable = "java -jar {}".format(picard)
-    picard_program = 'MarkDuplicates'
-    input_files = 'I=./BWA_BAM_files/{}.snp.realigned.recal.bam'.format(sample_base)
-    output_file = 'O=./BWA_BAM_files/{}.snp.realigned.recal.dupmarked.bam'.format(sample_base)
-    options = 'M=./BWA_BAM_files/{}-snp-marked_dup_metrics.txt'.format(sample_base)
-    command = [path_to_executable, picard_program, input_files, output_file, options]
-    call_code = ' '.join(command)
-    print(call_code)
-    process = subprocess.Popen([call_code], shell=True,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    while True:
-        output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
-            break
-        if output:
-            print output.strip()
-        rc = process.poll()
-        print("Done with mark dup for {}".format(sample_base))
-        os.remove('./BWA_BAM_files/{}.snp.realigned.recal.bam'.format(sample_base))
-
-
-def dup_indel_index(sample_base):
+def dup_index(sample_base):
     print("Starting indel dup index for {}".format(sample_base))
     path_to_executable = '{} index'.format(samtools)
-    path_to_samples = './BWA_BAM_files/{}.indel.realigned.recal.dupmarked.bam'.format(sample_base)
+
+    if entity_searched == 'indel':
+        path_to_samples = './BWA_BAM_files/{}.indel.realigned.recal.dupmarked.bam'.format(sample_base)
+    elif entity_searched == 'snp':
+        path_to_samples = './BWA_BAM_files/{}.snp.realigned.recal.dupmarked.bam'.format(sample_base)
+
     command = [path_to_executable, path_to_samples]
     call_code = ' '.join(command)
     print(call_code)
@@ -697,14 +615,29 @@ def dup_indel_index(sample_base):
         if output:
             print output.strip()
         rc = process.poll()
-        print("Done with indel dup index for {}".format(sample_base))
+    print("Done with dup index for {}".format(sample_base))
 
 
-def dup_snp_index(sample_base):
-    print("Starting snp dup index for {}".format(sample_base))
-    path_to_executable = '{} index'.format(samtools)
-    path_to_samples = './BWA_BAM_files/{}.snp.realigned.recal.dupmarked.bam'.format(sample_base)
-    command = [path_to_executable, path_to_samples]
+def final_entity_search(sample_base):
+    print("Starting final search for {}".format(sample_base))
+    path_to_executable = "java -jar {}".format(gatk)
+    gatk_program = '-T UnifiedGenotyper -l INFO'
+    path_to_reference = "-R {}".format(reference_genome)
+    options = '-A Coverage -A AlleleBalance -G Standard -stand_call_conf 50.0 -stand_emit_conf 10.0 -mbq 20 -deletions 0.05 -dcov 1000'
+
+    if entity_searched == 'indel':
+        search_item = '-glm INDEL'
+        input_files = '-I ./BWA_BAM_files/{}.indel.realigned.recal.dupmarked.bam'.format(sample_base)
+        path_to_vcf = "-D {}".format(indel_vcf_file)
+        output_file = '--out {}.indel.vcf -metrics {}.indel.outmetrics.txt'.format(sample_base, sample_base)
+    elif entity_searched == 'snp':
+        search_item = '-glm SNP'
+        input_files = '-I ./BWA_BAM_files/{}.snp.realigned.recal.dupmarked.bam'.format(sample_base)
+        path_to_vcf = "-D {}".format(snp_vcf_file)
+        output_file = '--out {}.snps.vcf -metrics {}.snp.outmetrics.txt'.format(sample_base, sample_base)
+
+    command = [path_to_executable, gatk_program, path_to_reference, input_files, path_to_vcf, output_file, options,
+               search_item]
     call_code = ' '.join(command)
     print(call_code)
     process = subprocess.Popen([call_code], shell=True,
@@ -716,98 +649,105 @@ def dup_snp_index(sample_base):
         if output:
             print output.strip()
         rc = process.poll()
-        print("Done with snp dup index for {}".format(sample_base))
+    print("Done with final search for {}".format(sample_base))
 
 
-def final_search_indel(sample_base):
-    print("Starting indel search for {}".format(sample_base))
-    path_to_executable = "java -jar {}".format(gatk)
-    gatk_program = '-T UnifiedGenotyper -l INFO'
-    path_to_reference = "-R {}".format(reference_genome)
-    input_files = '-I ./BWA_BAM_files/{}.indel.realigned.recal.dupmarked.bam'.format(sample_base)
-    path_to_vcf = "-D {}".format(indel_vcf_file)
-    output_file = '--out {}.indel.vcf -metrics {}.indel.outmetrics.txt'.format(sample_base, sample_base)
-    options = '-A Coverage -A AlleleBalance -G Standard -stand_call_conf 50.0 -stand_emit_conf 10.0 -mbq 20 -deletions 0.05 -dcov 1000 -glm INDEL'
-    command = [path_to_executable, gatk_program, path_to_reference, input_files, path_to_vcf, output_file, options]
-    call_code = ' '.join(command)
-    print(call_code)
-    process = subprocess.Popen([call_code], shell=True,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    while True:
-        output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
-            break
-        if output:
-            print output.strip()
-        rc = process.poll()
-        print("Done with indel search for {}".format(sample_base))
-
-
-def final_search_snp(sample_base):
-    print("Starting snp search for {}".format(sample_base))
-    path_to_executable = "java -jar {}".format(gatk)
-    gatk_program = '-T UnifiedGenotyper -l INFO'
-    path_to_reference = "-R {}".format(reference_genome)
-    input_files = '-I ./BWA_BAM_files/{}.snp.realigned.recal.dupmarked.bam'.format(sample_base)
-    path_to_vcf = "-D {}".format(snp_vcf_file)
-    output_file = '--out {}.snps.vcf -metrics {}.snp.outmetrics.txt'.format(sample_base, sample_base)
-    options = '-A Coverage -A AlleleBalance -G Standard -stand_call_conf 50.0 -stand_emit_conf 10.0 -mbq 20 -deletions 0.05 -dcov 1000 -glm SNP'
-    command = [path_to_executable, gatk_program, path_to_reference, input_files, path_to_vcf, output_file, options]
-    print(command)
-    subprocess.Popen(command,
-                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    print("Done with snp search for {}".format(sample_base))
-
-
-def run_all(sample_base):
+def RNAseq_analysis(sample_base):
     flexbar_trim(sample_base)
     hisat2_alignment(sample_base)
     sam_to_bam(sample_base)
     bam_sort(sample_base)
-    bam_sort(sample_base)
+    bam_index(sample_base)
     samstat_analysis(sample_base)
-    quit()
+    if entity_searched == 'snp':
+        bwa_genome_search(sample_base)
+    elif entity_searched == 'indel':
+        bwa_genome_search(sample_base)
+    elif entity_searched == 'none':
+        quit()
 
 
-def indel(sample_base):
-    gatk_indel_intervals(sample_base)
-    gatk_indel_realignment(sample_base)
-    gatk_indel_recalibration(sample_base)
-    gatk_indel_realign_recal(sample_base)
-    mark_indel_dup(sample_base)
-    dup_indel_index(sample_base)
-    final_search_indel(sample_base)
-    quit()
-
-
-def snp(sample_base):
-    gatk_snp_intervals(sample_base)
-    gatk_snp_realignment(sample_base)
-    gatk_snp_recalibration(sample_base)
-    gatk_snp_realign_recal(sample_base)
-    mark_snp_dup(sample_base)
-    dup_snp_index(sample_base)
-    final_search_snp(sample_base)
-    quit()
-
-
-def indel_snp_search(sample_base):
+def setup_bwa(sample_base):
     bwa_alignment(sample_base)
     bwa_read_group(sample_base)
     bwa_sam_to_bam(sample_base)
     bwa_bam_sort(sample_base)
     bwa_samstat_analysis(sample_base)
-    if indel_search == 'yes':
-        indel(sample_base)
-    elif indel_search == 'no':
-        print('Indel search not selected.')
-    elif snp_search == 'yes':
-        snp(sample_base)
-    elif snp_search == 'no':
-        print('SNP search no selected.')
-    quit()
+
+
+def bwa_genome_search(sample_base, cont):
+    if cont:
+        setup_bwa(sample_base)
+    # gatk_intervals(sample_base)
+    # gatk_realignment(sample_base)
+    # gatk_recalibration(sample_base)
+    # gatk_realign_recal(sample_base)
+    mark_dup(sample_base)
+    dup_index(sample_base)
+    # final_entity_search(sample_base)
+    # if entity_searched == 'indel':
+    #     os.remove('./BWA_BAM_files/{}.indel.realigned.recal.bam'.format(sample_base))
+    # elif entity_searched == 'snp':
+    #     os.remove('./BWA_BAM_files/{}.snp.realigned.recal.bam'.format(sample_base))
+    return False
+
+
+def gene_exp(sample_base):
+    """ Runs basic rna analysis
+
+
+    :param sample_base:
+    :return:
+    """
+    flexbar_trim(sample_base)
+    hisat2_alignment(sample_base)
+    sam_to_bam(sample_base)
+    bam_sort(sample_base)
+    bam_index(sample_base)
+    samstat_analysis(sample_base)
+
+
+def RNAseq_analysis(sample_base):
+    gene_exp(sample_base)
+    cont = True
+
+    if entity_searched == 'snp':
+        cont = bwa_genome_search(sample_base, cont)
+    elif entity_searched == 'indel':
+        cont = bwa_genome_search(sample_base, cont)
+    elif entity_searched == 'none':
+        quit()
+
+    # def do_snp(sample_base):
+    # does only snp
+
+    # def do_indel(sample_base):
+    # does only indel
+
+    # def protocol_both(sample_base):
+    #     do_snp()
+    #     do_indel()
+
+    # def protocol_1(sample_base):
+    #     gene_exp()
+    #     protocol_both()
+
+    # def protocol_2(sample_base):
+    # already did gene_exp, no need to do again
+    # protocol_both()
 
 
 os.chdir(output_directory)
 wd = os.getcwd()
 print(wd)
+
+# RNAseq_analysis('3612-DC-1')
+# RNAseq_analysis('3612-DC-2')
+# RNAseq_analysis('3612-DC-3')
+# RNAseq_analysis('3612-DC-4')
+# featurecounts_analysis()
+
+bwa_genome_search('3612-DC-1')
+# bwa_genome_search('3612-DC-2')
+# bwa_genome_search('3612-DC-3')
+# bwa_genome_search('3612-DC-4')
