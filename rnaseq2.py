@@ -677,13 +677,13 @@ def setup_bwa(sample_base):
 
 def bwa_genome_search(sample_base):
     # if cont:
-    # setup_bwa(sample_base)
-    # gatk_intervals(sample_base)
-    # gatk_realignment(sample_base)
-    # gatk_recalibration(sample_base)
-    # gatk_realign_recal(sample_base)
-    # mark_dup(sample_base)
-    # dup_index(sample_base)
+    setup_bwa(sample_base)
+    gatk_intervals(sample_base)
+    gatk_realignment(sample_base)
+    gatk_recalibration(sample_base)
+    gatk_realign_recal(sample_base)
+    mark_dup(sample_base)
+    dup_index(sample_base)
     final_entity_search(sample_base)
     # if entity_searched == 'indel':
     #     os.remove('./BWA_BAM_files/{}.indel.realigned.recal.bam'.format(sample_base))
@@ -747,7 +747,7 @@ print(wd)
 # RNAseq_analysis('3612-DC-4')
 # featurecounts_analysis()
 
-bwa_genome_search('3612-DC-1')
-# bwa_genome_search('3612-DC-2')
-# bwa_genome_search('3612-DC-3')
-# bwa_genome_search('3612-DC-4')
+# bwa_genome_search('3612-DC-1')
+bwa_genome_search('3612-DC-2')
+bwa_genome_search('3612-DC-3')
+bwa_genome_search('3612-DC-4')
