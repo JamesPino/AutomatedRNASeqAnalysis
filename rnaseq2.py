@@ -422,7 +422,7 @@ def bwa_bam_sort(sample_base):
 def bwa_index(sample_base):
     print("Starting index for {}".format(sample_base))
     path_to_executable = '{} index'.format(samtools)
-    path_to_samples = './BWA_BAM_files/{}.sorted.bam'
+    path_to_samples = './BWA_BAM_files/{}.sorted.bam'.format(sample_base)
 
     command = [path_to_executable, path_to_samples]
     call_code = ' '.join(command)
