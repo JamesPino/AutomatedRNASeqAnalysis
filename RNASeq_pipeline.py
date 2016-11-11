@@ -110,6 +110,12 @@ class RNASeq_pipeline:
         if not os.path.exists(output_directory):
             os.mkdir(output_directory)
         os.chdir(output_directory)
+        self.bwa_output = 'BWA_BAM_files'
+        if not os.path.exists(self.bwa_output):
+            os.mkdir(self.bwa_output)
+        self.bam_output = 'BAM_files'
+        if not os.path.exists(self.bam_output):
+            os.mkdir(self.bam_output)
 
 
     def flexbar_trim(self):
@@ -133,8 +139,8 @@ class RNASeq_pipeline:
         threads = '-n {}'.format(self.n_cpu)
 
         if read_type not in ('SE', 'PE'):
-            print(
-                "Error. Invalid read type. Valid options are SE or PE Aborting.")
+            print("Error. Invalid read type. Valid options are "
+                  "SE or PE Aborting.")
             quit()
 
         elif read_type == 'SE':
@@ -155,9 +161,6 @@ class RNASeq_pipeline:
     # HISAT Alignment
     def hisat2_alignment(self):
         print("Starting aligning {}".format(self.sample_base))
-        if not os.path.exists('BAM_files'):
-            os.mkdir('BAM_files')
-
         path_to_executable = hisat2
         output_name = '-S ./BAM_files/{}.sam'.format(self.sample_base)
         threads = '-p {}'.format(n_cpus)
@@ -177,31 +180,9 @@ class RNASeq_pipeline:
         self._run(command)
         print("Done aligning {}".format(self.sample_base))
 
-    def sam_to_bam(self):
-        """ Conversion from SAM to BAM and sorting
-        :return:
-        """
-        print("Start sam to bam conversion {}".format(self.sample_base))
-        path_to_executable = '{} view'.format(samtools)
-        path_to_samples = '-S -b ./BAM_files/{}.sam'.format(self.sample_base)
-        output_filename = '-o ./BAM_files/{}.bam'.format(self.sample_base)
-        threads = '--threads {}'.format(self.n_cpu)
-        command = [path_to_executable, path_to_samples, threads,
-                   output_filename]
-        self._run(command)
-        os.remove('./BAM_files/{}.sam'.format(self.sample_base))
 
-    def bam_sort(self):
-        print("Start sorting {}".format(self.sample_base))
-        path_to_executable = '{} sort'.format(samtools)
-        path_to_samples = 'BAM_files/{}.bam'.format(self.sample_base)
-        output_filename = '-o BAM_files/{}.sorted.bam'.format(self.sample_base)
-        threads = '--threads {}'.format(self.n_cpu)
-        command = [path_to_executable, threads, output_filename,
-                   path_to_samples]
-        self._run(command)
-        print("Done sorting {}".format(self.sample_base))
-        os.remove('./BAM_files/{}.bam'.format(self.sample_base))
+
+
 
     def bam_index(self):
         print("Start indexing {}".format(self.sample_base))
@@ -264,7 +245,6 @@ class RNASeq_pipeline:
 
     # INDEL/SNP Search Options - via BWA
     def bwa_alignment(self):
-        global_output = ''
         print("Starting alignment for {}".format(self.sample_base))
         if not os.path.exists('BWA_BAM_files'):
             os.mkdir('BWA_BAM_files')
@@ -276,7 +256,7 @@ class RNASeq_pipeline:
         second_pair_reads = "{}/{}-trimmed_2.{}".format(fasta_directory,
                                                         self.sample_base,
                                                         sample_suffix)
-        important_options = '-T 15 -M -t {}'.format(n_cpus)
+        important_options = '-T 15 -M -t {}'.format(self.n_cpu)
         path_to_reference = reference_genome
         export_to_file = '> ./BWA_BAM_files/{}.sam'.format(self.sample_base)
         command = [path_to_executable, important_options, path_to_reference,
@@ -303,6 +283,20 @@ class RNASeq_pipeline:
         print("Done adding read group {}".format(self.sample_base))
         os.remove('BWA_BAM_files/{}.sam'.format(self.sample_base))
 
+    def sam_to_bam(self):
+        """ Conversion from SAM to BAM and sorting
+        :return:
+        """
+        print("Start sam to bam conversion {}".format(self.sample_base))
+        path_to_executable = '{} view'.format(samtools)
+        path_to_samples = '-S -b ./BAM_files/{}.sam'.format(self.sample_base)
+        output_filename = '-o ./BAM_files/{}.bam'.format(self.sample_base)
+        threads = '--threads {}'.format(self.n_cpu)
+        command = [path_to_executable, path_to_samples, threads,
+                   output_filename]
+        self._run(command)
+        os.remove('./BAM_files/{}.sam'.format(self.sample_base))
+
     def bwa_sam_to_bam(self):
         print("Starting sam to bam conversion for {}".format(self.sample_base))
         path_to_executable = '{} view'.format(samtools)
@@ -317,18 +311,19 @@ class RNASeq_pipeline:
               "for {}".format(self.sample_base))
         os.remove('BWA_BAM_files/{}.rg.sam'.format(self.sample_base))
 
-    def bwa_bam_sort(self):
+    def bam_sort(self, directory):
         print("Start sorting {}".format(self.sample_base))
         path_to_executable = '{} sort'.format(samtools)
-        path_to_samples = './BWA_BAM_files/{}.bam'.format(self.sample_base)
-        output_filename = '-o ./BWA_BAM_files/{}.sorted.bam'.format(
-            self.sample_base)
-        threads = '--threads {}'.format(n_cpus)
+        path_to_samples = ' {}/{}.bam'.format(directory,
+                                              self.sample_base)
+        output_filename = '-o {}/{}.sorted.bam'.format(directory,
+                                                       self.sample_base)
+        threads = '--threads {}'.format(self.n_cpu)
         command = [path_to_executable, threads, output_filename,
                    path_to_samples]
         self._run(command)
         print("Done sorting {}".format(self.sample_base))
-        os.remove('./BWA_BAM_files/{}.bam'.format(self.sample_base))
+        os.remove('{0}/{1}.bam'.format(directory, self.sample_base))
 
     def bwa_index(self):
         print("Starting index for {}".format(self.sample_base))
@@ -528,7 +523,6 @@ class RNASeq_pipeline:
         self._run(command)
         print("Done with final search for {}".format(self.sample_base))
 
-
     def RNAseq_analysis(self):
         self.flexbar_trim()
         self.hisat2_alignment()
@@ -543,15 +537,13 @@ class RNASeq_pipeline:
         elif entity_searched == 'none':
             quit()
 
-
     def setup_bwa(self):
-        # bwa_alignment(sample_base)
-        # bwa_read_group(sample_base)
-        # bwa_sam_to_bam(sample_base)
-        # bwa_bam_sort(sample_base)
-        # bwa_samstat_analysis(sample_base)
+        self.bwa_alignment()
+        self.bwa_read_group()
+        self.bwa_sam_to_bam()
+        self.bam_sort('BWA_BAM_files')
+        self.bwa_samstat_analysis()
         self.bwa_index()
-
 
     def bwa_genome_search(self):
         # if cont:
@@ -594,7 +586,7 @@ class RNASeq_pipeline:
         self.flexbar_trim()
         self.hisat2_alignment()
         self.sam_to_bam()
-        self.bam_sort()
+        self.bam_sort('BAM_files')
         self.bam_index()
         self.samstat_analysis()
 
