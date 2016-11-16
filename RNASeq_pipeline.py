@@ -116,6 +116,7 @@ class RNASeq_pipeline:
         self.bam_output = 'BAM_files'
         if not os.path.exists(self.bam_output):
             os.mkdir(self.bam_output)
+        self.all_output = ''
 
 
     def flexbar_trim(self):
@@ -573,6 +574,7 @@ class RNASeq_pipeline:
                 break
             if output:
                 print output.strip()
+                self.all_output += output.strip()
             rc = process.poll()
         print('Finished')
 
@@ -619,6 +621,10 @@ class RNASeq_pipeline:
             # def protocol_2(sample_base):
             # already did gene_exp, no need to do again
             # protocol_both()
+
+    def write_log_file(self, file_name):
+        with open(file_name, 'w') as f:
+            f.write(self.all_output)
 
 
 if __name__ == '__main__':
