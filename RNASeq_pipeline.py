@@ -9,7 +9,7 @@ entitled "fasta" within a folder corresponding to the experiment name;
 modify general information in the first part of the script
 (starting with sample base).
 """
-
+import time
 import os
 import subprocess
 
@@ -25,7 +25,26 @@ n_cpus = 8
 pc = 'cortez_mac'
 pc = 'goku'
 # experiment_name = '20160816_rnaseq'  # Name of experiment, also name of the output folder for all files
-entity_searched = 'indel'  # Valid options include 'indel', 'snp', or 'none'
+entity_searched = 'snp'  # Valid options include 'indel', 'snp', or 'none'
+source_config = dict(
+    flexbar=None,
+    hisat2=None,
+    samtools=None,
+    featurecounts=None,
+    samstat=None,
+    gatk=None,
+    bwa=None,
+    picard=None
+)
+
+reference_config = dict(
+    adaptors=None,
+    transcripts=None,
+    hisat2_index=None,
+    bwa_index=None,
+    reference_genome=None,
+    indel_vcf_file=None
+)
 
 if pc == 'cortez_mac':
     # Setting up programs
@@ -75,7 +94,7 @@ elif pc == 'goku':
     output_directory = "/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/LP_data"
     fasta_directory = "/home/pinojc/LisaData/E65_rna_fasta"
     samtools = '/home/pinojc/RNASeq_sources/Software/samtools-1.3.1/samtools'
-    gatk = '/home/pinojc/RNASeq_sources/Software/GenomeAnalysisTK.jar'
+    gatk = '/home/pinojc/RNASeq_sources/Software/GATK/GenomeAnalysisTK.jar'
     bwa = '/home/pinojc/RNASeq_sources/Software/bwa.kit/bwa'
     picard = '/home/pinojc/RNASeq_sources/Software/picard.jar'
     samstat = '/usr/local/bin/samstat'
@@ -95,7 +114,7 @@ elif pc == 'goku':
         hisat2_index = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/HISAT2Index/genome'
         bwa_index = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome'
         reference_genome = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome.fa'
-
+        snp_vcf_file = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/1000G_phase1.snps.high_confidence.hg38.vcf'
     else:
         print(
             "Error - invalid species. Valid arguments are 'human' or 'mouse'")
@@ -181,14 +200,12 @@ class RNASeq_pipeline:
         print("Done aligning {}".format(self.sample_base))
 
 
-
-
-
     def bam_index(self):
         print("Start indexing {}".format(self.sample_base))
+        samtools = '/home/pinojc/RNASeq_sources/Software/./sambamba_v0.6.5'
         path_to_executable = '{} index'.format(samtools)
         path_to_samples = './BAM_files/{}.sorted.bam'.format(self.sample_base)
-        threads = '--threads {}'.format(self.n_cpu)
+        threads = '-p --nthreads={}'.format(self.n_cpu)
         command = [path_to_executable, threads, path_to_samples]
         self._run(command)
         print("Done indexing {}".format(self.sample_base))
@@ -327,11 +344,13 @@ class RNASeq_pipeline:
 
     def bwa_index(self):
         print("Starting index for {}".format(self.sample_base))
+        samtools = '/home/pinojc/RNASeq_sources/Software/./sambamba_v0.6.5'
         path_to_executable = '{} index'.format(samtools)
         path_to_samples = './BWA_BAM_files/{}.sorted.bam'.format(
             self.sample_base)
-
+        threads = '-p --nthreads={}'.format(self.n_cpu)
         command = [path_to_executable, path_to_samples]
+        command = [path_to_executable, threads, path_to_samples]
         self._run(command)
         print("Done with index for {}".format(self.sample_base))
 
@@ -355,6 +374,7 @@ class RNASeq_pipeline:
         path_to_executable = "java -jar {}".format(gatk)
         gatk_program = '-T RealignerTargetCreator'
         path_to_reference = "-R {}".format(reference_genome)
+        nt = '-nt {}'.format(self.n_cpu)
         input_files = '-I ./BWA_BAM_files/{}.sorted.bam'.format(
             self.sample_base)
 
@@ -367,7 +387,7 @@ class RNASeq_pipeline:
                 self.sample_base)
             path_to_vcf = "--known {}".format(snp_vcf_file)
 
-        command = [path_to_executable, gatk_program, path_to_reference,
+        command = [path_to_executable, gatk_program,nt,  path_to_reference,
                    input_files, path_to_vcf, output_file]
         self._run(command)
         print("Done with gatk intervals for {}".format(self.sample_base))
@@ -376,6 +396,7 @@ class RNASeq_pipeline:
         print("Starting gatk realignment for {}".format(self.sample_base))
         path_to_executable = "java -jar {}".format(gatk)
         gatk_program = '-T IndelRealigner'
+        # nt = '-nt {}'.format(self.n_cpu)
         path_to_reference = "-R {}".format(reference_genome)
         options = '--maxReadsForRealignment 999999 --maxReadsInMemory 999999'
 
@@ -394,7 +415,7 @@ class RNASeq_pipeline:
             output_file = '-o ./BWA_BAM_files/{}.snp.realigned.bam'.format(
                     self.sample_base)
 
-        command = [path_to_executable, gatk_program, path_to_reference,
+        command = [path_to_executable, gatk_program,  path_to_reference,
                    input_files, intervals, options, output_file]
         self._run(command)
         print("Done with gatk realignment for {}".format(self.sample_base))
@@ -418,7 +439,7 @@ class RNASeq_pipeline:
                     self.sample_base)
             output_file = '-o ./BWA_BAM_files/{}.snp.recal.table'.format(
                     self.sample_base)
-            path_to_vcf = "--known {}".format(snp_vcf_file)
+            path_to_vcf = "-knownSites {}".format(snp_vcf_file)
 
         command = [path_to_executable, gatk_program, path_to_reference,
                    input_files, options, path_to_vcf, output_file]
@@ -538,18 +559,18 @@ class RNASeq_pipeline:
             quit()
 
     def setup_bwa(self):
-        self.bwa_alignment()
-        self.bwa_read_group()
-        self.bwa_sam_to_bam()
-        self.bam_sort('BWA_BAM_files')
-        self.bwa_samstat_analysis()
+        # self.bwa_alignment()
+        # self.bwa_read_group()
+        # self.bwa_sam_to_bam()
+        # self.bam_sort('BWA_BAM_files')
+        # self.bwa_samstat_analysis()
         self.bwa_index()
 
     def bwa_genome_search(self):
         # if cont:
-        self.setup_bwa()
-        self.gatk_intervals()
-        self.gatk_realignment()
+        # self.setup_bwa()
+        # self.gatk_intervals()
+        # self.gatk_realignment()
         self.gatk_recalibration()
         self.gatk_realign_recal()
         self.mark_dup()
@@ -562,6 +583,7 @@ class RNASeq_pipeline:
         return False
 
     def _run(self, command):
+        st =  time.time()
         call_code = ' '.join(command)
         print("Running command {}".format(call_code))
         process = subprocess.Popen([call_code], shell=True,
@@ -574,7 +596,7 @@ class RNASeq_pipeline:
             if output:
                 print output.strip()
             rc = process.poll()
-        print('Finished')
+        print('Finished - time taken = {}'.format(time.time()  - st))
 
     def gene_exp(self):
         """ Runs basic rna analysis
@@ -621,26 +643,3 @@ class RNASeq_pipeline:
             # protocol_both()
 
 
-if __name__ == '__main__':
-    os.chdir(output_directory)
-    wd = os.getcwd()
-    print(wd)
-
-    # RNAseq_analysis('3612-DC-1')
-    # RNAseq_analysis('3612-DC-2')
-    # RNAseq_analysis('3612-DC-3')
-    # RNAseq_analysis('3612-DC-4')
-    # featurecounts_analysis()
-
-
-    os.chdir(output_directory)
-    wd = os.getcwd()
-    print(wd)
-
-    # bwa_genome_search('3612-DC-1')
-    bwa_genome_search('3612-DC-2')
-    bwa_genome_search('3612-DC-3')
-    bwa_genome_search('3612-DC-4')
-    # bwa_index('3612-DC-2')
-    # bwa_index('3612-DC-3')
-    # bwa_index('3612-DC-4')

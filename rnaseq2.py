@@ -21,9 +21,9 @@ read_length = 150
 sample_suffix = 'fastq'
 compression_suffix = 'gz'
 n_cpus = 8
-pc = 'cortez_mac'
+pc = 'goku'
 # experiment_name = '20160816_rnaseq'  # Name of experiment, also name of the output folder for all files
-entity_searched = 'indel'  # Valid options include 'indel', 'snp', or 'none'
+entity_searched = 'snp'  # Valid options include 'indel', 'snp', or 'none'
 
 if pc == 'cortez_mac':
     # Setting up programs
@@ -45,7 +45,7 @@ if pc == 'cortez_mac':
         adaptors = '/Users/temporary/genomes/adapters/illumina_truseq.fasta'
         transcripts = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf'
         hisat2_index = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Sequence/HISAT2_index/mm10.genome'
-        bwa_index = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Sequence/BWAIndex/version0.7.15/genome_indel'
+        bwa_index_location = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Sequence/BWAIndex/version0.7.15/genome_indel'
         reference_genome = reference_genome = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome_indel.fa'
         indel_vcf_file = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Sequence/BWAIndex/version0.7.15/mgp.v5.merged.indels.dbSNP142.normed_with_chr.vcf'
 
@@ -53,7 +53,7 @@ if pc == 'cortez_mac':
         adaptors = '/Users/temporary/genomes/adapters/illumina_truseq.fasta'
         transcripts = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Annotation/Genes/genes.gtf'
         hisat2_index = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/HISAT2Index.hisat_genome'
-        bwa_index = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome'
+        bwa_index_location = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome'
         reference_genome = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome.fa'
         indel_vcf_file = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/Mills_and_1000G_gold_standard.indels.hg38.vcf'
         snp_vcf_file = '/Users/temporary/genomes/Homo_sapiens_hg38/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/1000G_phase1.snps.high_confidence.hg38.vcf'
@@ -90,8 +90,9 @@ elif pc == 'goku':
     elif species == 'human':
         transcripts = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Annotation/Genes/genes.gtf'
         hisat2_index = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/HISAT2Index/genome'
-        bwa_index = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome'
+        bwa_index_location = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome'
         reference_genome = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome.fa'
+        snp_vcf_file = '/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/1000G_phase1.snps.high_confidence.hg38.vcf'
 
     else:
         print(
@@ -398,6 +399,7 @@ def bwa_sam_to_bam(sample_base):
 
 def bwa_bam_sort(sample_base):
     print("Start sorting {}".format(sample_base))
+
     path_to_executable = '{} sort'.format(samtools)
     path_to_samples = './BWA_BAM_files/{}.bam'.format(sample_base)
     output_filename = '-o ./BWA_BAM_files/{}.sorted.bam'.format(sample_base)
@@ -420,11 +422,16 @@ def bwa_bam_sort(sample_base):
 
 
 def bwa_index(sample_base):
+    import time
+    st = time.time()
     print("Starting index for {}".format(sample_base))
+    # samtools = '/home/pinojc/RNASeq_sources/Software/./sambamba_v0.6.5'
     path_to_executable = '{} index'.format(samtools)
     path_to_samples = './BWA_BAM_files/{}.sorted.bam'.format(sample_base)
-
-    command = [path_to_executable, path_to_samples]
+    # nt = '-p --nthreads={}'.format(n_cpus)
+    nt = ' --threads={}'.format(n_cpus)
+    command = [path_to_executable, nt, path_to_samples]
+    # command = [path_to_executable, path_to_samples]
     call_code = ' '.join(command)
     print(call_code)
     process = subprocess.Popen([call_code], shell=True,
@@ -437,7 +444,7 @@ def bwa_index(sample_base):
             print output.strip()
         rc = process.poll()
     print("Done with index for {}".format(sample_base))
-
+    print('done, time = {}'.format(time.time()-st))
 
 def bwa_samstat_analysis(sample_base):
     print("Starting samstat analysis for {}".format(sample_base))
@@ -537,7 +544,7 @@ def gatk_recalibration(sample_base):
     elif entity_searched == 'snp':
         input_files = '-I BWA_BAM_files/{}.snp.realigned.bam'.format(sample_base)
         output_file = '-o ./BWA_BAM_files/{}.snp.recal.table'.format(sample_base)
-        path_to_vcf = "--known {}".format(snp_vcf_file)
+        path_to_vcf = "--knownSites {}".format(snp_vcf_file)
 
     command = [path_to_executable, gatk_program, path_to_reference, input_files, options, path_to_vcf, output_file]
     call_code = ' '.join(command)
@@ -772,11 +779,12 @@ print(wd)
 os.chdir(output_directory)
 wd = os.getcwd()
 print(wd)
-
+bwa_index('3612-DC-2')
+quit()
 # bwa_genome_search('3612-DC-1')
 bwa_genome_search('3612-DC-2')
-bwa_genome_search('3612-DC-3')
-bwa_genome_search('3612-DC-4')
+# bwa_genome_search('3612-DC-3')
+# bwa_genome_search('3612-DC-4')
 # bwa_index('3612-DC-2')
 # bwa_index('3612-DC-3')
 # bwa_index('3612-DC-4')
