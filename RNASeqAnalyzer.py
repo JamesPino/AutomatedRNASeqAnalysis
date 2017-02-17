@@ -232,6 +232,7 @@ class RNASeqAnalyzer(object):
         path_to_executable = '{} index'.format(self.samtools)
         path_to_samples = './BAM_files/{}.sorted.bam'.format(self.sample_base)
         threads = '-p --nthreads={}'.format(self.n_cpu)
+        threads = ''
         command = [path_to_executable, threads, path_to_samples]
         if self.write_bash:
             self._bash_file += ' '.join(i for i in command)
@@ -334,8 +335,7 @@ class RNASeqAnalyzer(object):
             quit()
 
         for i in list_of_samples:
-            input_files = ' ./BAM_files/{0}-{1}.sorted.bam'.format(
-                    self.sample_base, i)
+            input_files = ' ./BAM_files/{0}.sorted.bam'.format(i)
             out_string += input_files
         if read_type == 'SE':
             important_options = "-T {}".format(n_cpus)
