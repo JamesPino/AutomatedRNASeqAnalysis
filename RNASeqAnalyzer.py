@@ -26,36 +26,26 @@ sample_suffix = 'fastq'
 compression_suffix = 'gz'
 n_cpus = 8
 
-# Name of experiment, also name of the output folder for all files
-# experiment_name = '20160816_rnaseq'
-
 source_config = dict(flexbar=None, hisat2=None, samtools=None,
                      featurecounts=None, samstat=None, )
 
 reference_config = dict(adaptors=None, transcripts=None, hisat2_index=None,
-                        reference_genome=None,
-                        )
+                        reference_genome=None, )
 
-
-
-goku_config = dict(
-    flexbar='/usr/bin/flexbar',
-    hisat2='/home/pinojc/RNASeq_sources/Software/hisat2-2.0.4/hisat2',
-    samtools='/home/pinojc/RNASeq_sources/Software/samtools-1.3.1/samtools',
-    samstat='/usr/local/bin/samstat',
-    featurecounts='/home/pinojc/RNASeq_sources/Software/subread-1.5.1-source/bin/featureCounts',
-    fasta_directory="/home/pinojc/LisaData/E65_rna_fasta",
-    gatk='/home/pinojc/RNASeq_sources/Software/GATK/GenomeAnalysisTK.jar',
-    bwa='/home/pinojc/RNASeq_sources/Software/bwa.kit/bwa',
-    picard='/home/pinojc/RNASeq_sources/Software/picard.jar', )
-
-
-
+goku_config = dict(flexbar='/usr/bin/flexbar',
+                   hisat2='/home/pinojc/RNASeq_sources/Software/hisat2-2.0.4/hisat2',
+                   samtools='/home/pinojc/RNASeq_sources/Software/samtools-1.3.1/samtools',
+                   samstat='/usr/local/bin/samstat',
+                   featurecounts='/home/pinojc/RNASeq_sources/Software/subread-1.5.1-source/bin/featureCounts',
+                   fasta_directory="/home/pinojc/LisaData/E65_rna_fasta",
+                   gatk='/home/pinojc/RNASeq_sources/Software/GATK/GenomeAnalysisTK.jar',
+                   bwa='/home/pinojc/RNASeq_sources/Software/bwa.kit/bwa',
+                   picard='/home/pinojc/RNASeq_sources/Software/picard.jar', )
 
 
 class RNASeqAnalyzer(object):
     def __init__(self, sample_base, output_directory, n_cpu, ref_config,
-                 executables_config):
+                 executables_config, write_bash=False):
         self.sample_base = sample_base
         self.n_cpu = n_cpu
         if not os.path.exists(output_directory):
@@ -80,17 +70,20 @@ class RNASeqAnalyzer(object):
         self.transcripts = ref_config['transcripts']
         self.hisat2_index = ref_config['hisat2_index']
         self.reference_genome = ref_config['reference_genome']
+        self.write_bash = write_bash
+        self._bash_file = ''
 
         for i in source_config:
             if i not in executables_config:
-                print("Please provide path to {} in executables_config".format(i))
+                print("Please provide path to {} in executables_config".format(
+                        i))
         for i in executables_config:
             which(executables_config[i])
 
         self._exe = executables_config
         self.flexbar = self._exe['flexbar']
         self.hisat2 = self._exe['hisat2']
-        self.samstat= self._exe['samstat']
+        self.samstat = self._exe['samstat']
         self.samtools = self._exe['samtools']
         self.featurecounts = self._exe['featurecounts']
 
@@ -151,13 +144,17 @@ class RNASeqAnalyzer(object):
 
         elif read_type == 'PE':
             reads = ' -r {0}/{1}_1.{2}.{3} -p {0}/{1}_2.{2}.{3}'.format(
-                self.fasta_dir, self.sample_base, sample_suffix,
-                compression_suffix)
+                    self.fasta_dir, self.sample_base, sample_suffix,
+                    compression_suffix)
 
         command = [path_to_executable, reads, path_to_adaptors, threads,
                    suffix_for_output, adaptor_overlap, adaptor_trim_end,
                    number_max_uncalled_bases_pass, main_read_length_to_remain]
-        self._run(command)
+        if self.write_bash:
+            self._bash_file += ' '.join(i for i in command)
+            self._bash_file += '\n'
+        else:
+            self._run(command)
         print("Done trimming {}".format(self.sample_base))
 
     # HISAT Alignment
@@ -175,8 +172,12 @@ class RNASeqAnalyzer(object):
         """
         print("Starting aligning {}".format(self.sample_base))
         path_to_executable = self._exe['hisat2']
+        if not os.path.exists("BAM_files"):
+            print("Creating BAM_files directory")
+            os.mkdir("BAM_files")
         output_name = '-S ./BAM_files/{}.sam'.format(self.sample_base)
-        threads = '-p {}'.format(n_cpus)
+        threads = '-p {}'.format(self.n_cpu)
+
         indices = '-x {}'.format(self.hisat2_index)
 
         if read_type == 'SE':
@@ -184,13 +185,17 @@ class RNASeqAnalyzer(object):
                                                     self.sample_base,
                                                     sample_suffix)
         elif read_type == 'PE':
-            reads = '-1 {0}/{1}-trimmed_1_1.{2} ' \
-                    '-2 {0}/{1}-trimmed_1_2.{2}'.format(self.fasta_dir,
+            reads = '-1 {0}/{1}-trimmed_1.{2} ' \
+                    '-2 {0}/{1}-trimmed_2.{2}'.format(self.fasta_dir,
                                                         self.sample_base,
                                                         sample_suffix, )
 
         command = [path_to_executable, threads, indices, reads, output_name]
-        self._run(command)
+        if self.write_bash:
+            self._bash_file += ' '.join(i for i in command)
+            self._bash_file += '\n'
+        else:
+            self._run(command)
         print("Done aligning {}".format(self.sample_base))
 
     def sam_to_bam(self):
@@ -207,8 +212,11 @@ class RNASeqAnalyzer(object):
         threads = '--threads {}'.format(self.n_cpu)
         command = [path_to_executable, path_to_samples, threads,
                    output_filename]
-        self._run(command)
-        os.remove('./BAM_files/{}.sam'.format(self.sample_base))
+        if self.write_bash:
+            self._bash_file += ' '.join(i for i in command)
+            self._bash_file += '\n'
+        else:
+            self._run(command)
 
     def bam_index(self):
         """ Indexs SAM file to BAM
@@ -225,7 +233,11 @@ class RNASeqAnalyzer(object):
         path_to_samples = './BAM_files/{}.sorted.bam'.format(self.sample_base)
         threads = '-p --nthreads={}'.format(self.n_cpu)
         command = [path_to_executable, threads, path_to_samples]
-        self._run(command)
+        if self.write_bash:
+            self._bash_file += ' '.join(i for i in command)
+            self._bash_file += '\n'
+        else:
+            self._run(command)
         print("Done indexing {}".format(self.sample_base))
 
     # SAMSTAT Quality Check
@@ -244,12 +256,16 @@ class RNASeqAnalyzer(object):
         path_to_executable = self.samstat
         path_to_samples = './BAM_files/{}.sorted.bam'.format(self.sample_base)
         command = [path_to_executable, path_to_samples]
-        self._run(command)
+        if self.write_bash:
+            self._bash_file += ' '.join(i for i in command)
+            self._bash_file += '\n'
+        else:
+            self._run(command)
+            os.rename('BAM_files/{}.sorted.bam.samstat.html'.format(
+                    self.sample_base),
+                    'quality_control/{}.hisat2.sorted.bam.samstat.html'.format(
+                            self.sample_base))
         print("Done SAMSTAT check {}".format(self.sample_base))
-        os.rename(
-            'BAM_files/{}.sorted.bam.samstat.html'.format(self.sample_base),
-            'quality_control/{}.hisat2.sorted.bam.samstat.html'.format(
-                self.sample_base))
 
     def bam_sort(self, directory):
         """ sorts bam file and collapses duplicates
@@ -274,9 +290,12 @@ class RNASeqAnalyzer(object):
         threads = '--threads {}'.format(self.n_cpu)
         command = [path_to_executable, threads, output_filename,
                    path_to_samples]
-        self._run(command)
+        if self.write_bash:
+            self._bash_file += ' '.join(i for i in command)
+            self._bash_file += '\n'
+        else:
+            self._run(command)
         print("Done sorting {}".format(self.sample_base))
-        os.remove('{0}/{1}.bam'.format(directory, self.sample_base))
 
     # FeatureCounts - align reads to genes
     def featurecounts_analysis(self, list_of_samples):
@@ -316,7 +335,7 @@ class RNASeqAnalyzer(object):
 
         for i in list_of_samples:
             input_files = ' ./BAM_files/{0}-{1}.sorted.bam'.format(
-                self.sample_base, i)
+                    self.sample_base, i)
             out_string += input_files
         if read_type == 'SE':
             important_options = "-T {}".format(n_cpus)
@@ -326,7 +345,11 @@ class RNASeqAnalyzer(object):
         command = [path_to_executable, important_options, gtf_feature,
                    gtf_attibute, quality_score, annotation_file, output_name,
                    out_string]
-        self._run(command)
+        if self.write_bash:
+            self._bash_file += ' '.join(i for i in command)
+            self._bash_file += '\n'
+        else:
+            self._run(command)
         print("Done running {}".format(self.sample_base))
 
     def _run(self, command):
@@ -341,7 +364,7 @@ class RNASeqAnalyzer(object):
             if output == '' and process.poll() is not None:
                 break
             if output:
-                output.strip()
+                print(output.strip())
                 self.all_output += output.strip()
             rc = process.poll()
         print('Finished - time taken = {}'.format(time.time() - st))
@@ -397,12 +420,12 @@ if __name__ == "__main__":
             reference_genome='/media/pinojc/68f7ba6a-cdf6-4761-930d-9c1bb724e40d/home/Homo_sapiens/UCSC/hg38/Sequence/BWAIndex/genome.fa', )
 
     vegeta_config = dict(
-        featurecounts='/home/pinojc/Sources/subread-1.5.1-source/bin/featureCounts',
-        samstat='samstat',
-        samtools='samtools',
-        hisat2='/home/pinojc/Sources/hisat2-2.0.5/hisat2',
-        flexbar='/home/pinojc/Sources/flexbar_v2.5_linux64/flexbar' )
+            featurecounts='/home/pinojc/Sources/subread-1.5.1-source/bin/featureCounts',
+            samstat='samstat', samtools='samtools',
+            hisat2='/home/pinojc/Sources/hisat2-2.0.5/hisat2',
+            flexbar='/home/pinojc/Sources/flexbar_v2.5_linux64/flexbar')
 
     x = RNASeqAnalyzer('test', 'test', 1, ref_config=goku_ref_config,
-                       executables_config=vegeta_config)
-
+                       executables_config=vegeta_config, write_bash=True)
+    x.gene_exp()
+    print(x._bash_file)
