@@ -47,7 +47,7 @@ if pc == 'cortez_mac':
         hisat2_index = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Sequence/HISAT2_index/mm10.genome'
         bwa_index_location = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Sequence/BWAIndex/version0.7.15/genome_indel'
         reference_genome = reference_genome = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome_indel.fa'
-        indel_vcf_file = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Sequence/BWAIndex/version0.7.15/mgp.v5.merged.indels.dbSNP142.normed_with_chr.vcf'
+        indel_vcf_file = '/Users/temporary/genomes/Mus_musculus/UCSC/mm10/Sequence/BWAIndex/version0.7.15/Mills_and_1000G_gold_standard.indels.hg38.vcf'
 
     elif species == 'human':
         adaptors = '/Users/temporary/genomes/adapters/illumina_truseq.fasta'
@@ -769,22 +769,9 @@ os.chdir(output_directory)
 wd = os.getcwd()
 print(wd)
 
-# RNAseq_analysis('3612-DC-1')
-# RNAseq_analysis('3612-DC-2')
-# RNAseq_analysis('3612-DC-3')
-# RNAseq_analysis('3612-DC-4')
-# featurecounts_analysis()
-
 
 os.chdir(output_directory)
 wd = os.getcwd()
 print(wd)
 bwa_index('3612-DC-2')
 quit()
-# bwa_genome_search('3612-DC-1')
-bwa_genome_search('3612-DC-2')
-# bwa_genome_search('3612-DC-3')
-# bwa_genome_search('3612-DC-4')
-# bwa_index('3612-DC-2')
-# bwa_index('3612-DC-3')
-# bwa_index('3612-DC-4')
