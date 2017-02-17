@@ -14,15 +14,20 @@ if __name__ == '__main__':
             hisat2='/home/pinojc/Sources/hisat2-2.0.5/hisat2',
             flexbar='/home/pinojc/Sources/flexbar_v2.5_linux64/flexbar')
 
-    x = RNASeqAnalyzer('3612-DC-1',
+    x = RNASeqAnalyzer('3612-DC-3',
                        '/mnt/d/LP_data/Test',
                        4,
                        ref_config=goku_ref_config,
                        executables_config=goku_config,
                        write_bash=False)
-    # x.gene_exp()
+    x.gene_exp()
     # x.flexbar_trim()
-    x.hisat2_alignment()
-    with open('run_1.sh', 'w') as f:
-        f.write(x._bash_file)
+    # x.hisat2_alignment()
+    # x.sam_to_bam()
+    # x.bam_sort('BAM_files')
+    # x.bam_index()
+    # x.samstat_analysis()
+    # x.featurecounts_analysis(['3612-DC-1'])
+    # with open('run_1.sh', 'w') as f:
+    #     f.write(x._bash_file)
     # print(x._bash_file)
