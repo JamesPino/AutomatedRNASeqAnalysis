@@ -3,7 +3,7 @@
 RNAseq analysis for Cortez Lab
 Authors: Lisa Poole and James Pino
 
-This pipeline is optimized for the Lab Mac with IP addres 10.105.17.158 on the desk by the glass window.
+This pipeline is optimized for the Lab Mac with IP address 10.105.17.158 on the desk by the glass window.
 (Can be optimized for other computers by changing general information and setup under pc.)
 
 Requirements for this experiment - sequencing data files must be in a folder entitled
